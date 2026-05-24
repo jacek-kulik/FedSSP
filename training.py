@@ -97,7 +97,7 @@ def run_fedSSP(args, clients, server, COMMUNICATION_ROUNDS, local_epoch, samp=No
                 args.outbase,
                 "raw",
                 args.data_group,
-                f"metrics_{args.alg}_{args.type_init}.csv"
+                f"{args.repeat}_metrics_{args.alg}_{args.type_init}.csv"
             )
 
             if not os.path.exists(csv_path):

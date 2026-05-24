@@ -4,3 +4,5 @@ Data*
 *.log
 *.tmp
 outputs
+.pyc
+__pycache__/
