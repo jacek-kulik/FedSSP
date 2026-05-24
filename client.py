@@ -128,19 +128,26 @@ def train_gc_SSP(client, model, dataloaders, local_epoch, device, train_preproce
     losses_train, accs_train, losses_val, accs_val, losses_test, accs_test = [], [], [], [], [], []
     train_loader, val_loader, test_loader = dataloaders['train'], dataloaders['val'], dataloaders['test']
 
+    if client.args.mean_mode == 'epochs':
+        client.current_mean.zero_()
+        client.num_batches_tracked.zero_()
     for epoch in range(local_epoch):
         model.train()
         total_loss = 0.
         ngraphs = 0
         acc_sum = 0
 
+        if client.args.mean_mode == 'batches':
+            client.current_mean.zero_()
+            client.num_batches_tracked.zero_()
         for batch in train_preprocessed_batches:
             e, u, g, length, label, _ = batch
             optimizer = torch.optim.AdamW(model.parameters(), lr=0.001, betas=(0.9, 0.999), eps=1e-8,
                                           weight_decay=5e-4)
             optimizer.zero_grad()
-            client.current_mean.zero_()
-            client.num_batches_tracked.zero_()
+            if client.args.mean_mode == 'none':
+                client.current_mean.zero_()
+                client.num_batches_tracked.zero_()
             x = g.ndata['feat']
             rep, pred = model(e, u, g, length, x)
             current_mean = torch.mean(rep, dim=0).to(device)
@@ -254,19 +261,26 @@ class clientAvgSSP(Client_GC):
         losses_train, accs_train, losses_val, accs_val, losses_test, accs_test = [], [], [], [], [], []
         train_loader, val_loader, test_loader = dataloaders['train'], dataloaders['val'], dataloaders['test']
 
+        if client.args.mean_mode == 'epochs':
+            client.current_mean.zero_()
+            client.num_batches_tracked.zero_()
         for epoch in range(local_epoch):
             model.train()
             total_loss = 0.
             ngraphs = 0
             acc_sum = 0
 
+            if client.args.mean_mode == 'batches':
+                client.current_mean.zero_()
+                client.num_batches_tracked.zero_()
             for batch in train_preprocessed_batches:
                 e, u, g, length, label, _ = batch
                 optimizer = torch.optim.AdamW(model.parameters(), lr=0.001, betas=(0.9, 0.999), eps=1e-8,
                                               weight_decay=5e-4)
                 optimizer.zero_grad()
-                client.current_mean.zero_()
-                client.num_batches_tracked.zero_()
+                if client.args.mean_mode == 'official':
+                    client.current_mean.zero_()
+                    client.num_batches_tracked.zero_()
                 x = g.ndata['feat']
                 rep, pred = model(e, u, g, length, x)
                 current_mean = torch.mean(rep, dim=0).to(device)

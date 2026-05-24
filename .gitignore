@@ -1,0 +1,6 @@
+.idea/
+Data*
+*.iml
+*.log
+*.tmp
+outputs

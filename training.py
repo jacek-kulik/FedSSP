@@ -1,7 +1,11 @@
+import os
+
 import pandas as pd
 from client import collate_pyg_to_dgl
 import torch
+import time
 import numpy as np
+
 def proscess_loader(loader, device):
     preprocessed_batches = []
     for batch in loader:
@@ -27,10 +31,12 @@ def run_fedSSP(args, clients, server, COMMUNICATION_ROUNDS, local_epoch, samp=No
         server.selected_clients = clients
         client.train_samples = len(train_loader)
 
-
+    start_time = time.time()
+    round_times = []
     for c_round in range(1, COMMUNICATION_ROUNDS + 1):
-        if (c_round) % 50 == 0:
-            print(f"  > round {c_round}")
+        print(f"  > round {c_round}")
+
+        round_start = time.time()
 
         if c_round == 1:
             selected_clients = clients
@@ -70,6 +76,12 @@ def run_fedSSP(args, clients, server, COMMUNICATION_ROUNDS, local_epoch, samp=No
                 global_consensus += server.clients[cid].current_mean * w
             for client in server.selected_clients:
                 client.global_consensus = global_consensus.data.clone()
+
+        round_elapsed = time.time() - round_start
+        total_elapsed = time.time() - start_time
+
+        round_times.append(round_elapsed)
+
         if c_round % 1 == 0:
             accs = []
             losses = []
@@ -81,8 +93,33 @@ def run_fedSSP(args, clients, server, COMMUNICATION_ROUNDS, local_epoch, samp=No
             mean_acc = np.mean(accs)
             std_acc = np.std(accs)
 
+            csv_path = os.path.join(
+                args.outbase,
+                "raw",
+                args.data_group,
+                f"metrics_{args.alg}_{args.type_init}.csv"
+            )
+
+            if not os.path.exists(csv_path):
+                with open(csv_path, "w") as f:
+                    f.write(
+                        "round,mean_acc,std_acc,round_time,total_time\n"
+                    )
+
+            with open(csv_path, "a") as f:
+                f.write(
+                    f"{c_round},"
+                    f"{mean_acc},"
+                    f"{std_acc},"
+                    f"{round_elapsed},"
+                    f"{total_elapsed}\n"
+                )
+
             summary_writer.add_scalar(f'Test/Acc/Mean_{args.alg}', mean_acc, c_round)
             summary_writer.add_scalar(f'Test/Acc/Std_{args.alg}', std_acc, c_round)
+            summary_writer.add_scalar('Time/Round_Seconds', round_elapsed, c_round)
+            summary_writer.add_scalar('Time/Total_Seconds', total_elapsed, c_round)
+
     frame = pd.DataFrame()
     for client in clients:
         loss, acc = client.evaluate()
